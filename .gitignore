@@ -1,0 +1,7 @@
+/.eggs
+/.tox
+/AUTHORS
+/build
+/ChangeLog
+/dist
+/rtox.egg-info
