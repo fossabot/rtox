@@ -1,2 +1,3 @@
 pbr
-paramiko
+python-gssapi
+paramiko>=2.3.0
