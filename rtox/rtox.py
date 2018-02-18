@@ -76,7 +76,17 @@ def load_config():
     config.set('ssh', 'user', getpass.getuser())
     config.set('ssh', 'hostname', 'localhost')
     config.set('ssh', 'port', '22')
-    config.read(os.path.expanduser('~/.rtox.cfg'))
+
+    dir = os.getcwd()
+    while dir:
+        f = os.path.join(dir, '.rtox.cfg')
+        if os.path.isfile(f):
+            break
+        dir = os.path.dirname(dir)
+    if not dir:
+        f = os.path.expanduser('~/.rtox.cfg')
+    print("INFO: Loading config from %s" % f)
+    config.read(f)
     return config
 
 

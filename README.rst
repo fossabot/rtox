@@ -37,12 +37,16 @@ to be useful to you:
 Usage
 -----
 
-Configure ``rtox`` with an ``~/.rtox.cfg`` file like the following::
+Configure ``rtox`` with an ``.rtox.cfg`` file like the following::
 
     [ssh]
     user = root
     hostname = localhost
     port = 22
+
+rtox will look for config file in current folder or its parents and use
+``~/.rtox.cfg`` as fallback. This allows user to have different configs
+for different projects or groups of projects.
 
 ``rtox`` simply needs to be pointed at an SSH host with ``git``, ``tox`` and
 ``virtualenv`` installed.
