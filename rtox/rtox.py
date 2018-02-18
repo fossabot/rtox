@@ -120,7 +120,10 @@ def cli():
     # Bail immediately if we don't have what we need on the remote host.
     # We prefer to check if python modules are installed instead of the cli
     # scipts because on some platforms (like MacOS) script may not be in PATH.
-    if client.run('output=`python -m virtualenv --version && python -m tox --version` || { echo $output; exit 1; }') != 0:
+    cmd = 'output=`python -m virtualenv --version && \
+           python -m tox --version` || \
+           { echo $output; exit 1; }'
+    if client.run(cmd) != 0:
         raise SystemExit(
             'Ensure tox and virtualenv are available on the remote host.')
 
