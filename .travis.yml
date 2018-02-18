@@ -1,0 +1,19 @@
+language: python
+sudo: required
+# see https://github.com/travis-ci/travis-ci/issues/8647
+os:
+- linux
+python:
+- '2.7'
+install:
+- sudo pip install tox virtualenv
+- ssh-keygen -q -t rsa -N '' -f ~/.ssh/id_rsa
+- cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+- echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+- chmod g-rw,o-rw ~/.ssh/*
+- which python
+- ssh localhost which python
+- ssh localhost python -m tox --version
+- ssh localhost python -m virtualenv --version
+script:
+- make info test dist

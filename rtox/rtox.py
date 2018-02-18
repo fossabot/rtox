@@ -29,6 +29,7 @@ class Client(object):
     def __init__(self, hostname, port=None, user=None):
         """Initialize an SSH client based on the given configuration."""
         self.ssh = paramiko.SSHClient()
+        self.ssh.load_system_host_keys()
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self.ssh.connect(hostname, port=port, username=user)
 
@@ -36,7 +37,7 @@ class Client(object):
         """Run the given command remotely over SSH, echoing output locally."""
         channel = self.ssh.get_transport().open_session()
         channel.exec_command(command)
-        stdin, stdout, stderr = self.ssh.exec_command(command)
+        stdin, stdout, stderr = self.ssh.exec_command(command, get_pty=True)
 
         # Pass remote stdout and stderr to the local terminal
         try:
@@ -107,7 +108,9 @@ def cli():
         user=config.get('ssh', 'user'))
 
     # Bail immediately if we don't have what we need on the remote host.
-    if client.run('which virtualenv && which tox') != 0:
+    # We prefer to check if python modules are installed instead of the cli
+    # scipts because on some platforms (like MacOS) script may not be in PATH.
+    if client.run('output=`python -m virtualenv --version && python -m tox --version` || { echo $output; exit 1; }') != 0:
         raise SystemExit(
             'Ensure tox and virtualenv are available on the remote host.')
 
@@ -119,6 +122,8 @@ def cli():
     subprocess.check_call([
         'rsync',
         '--update',
+        '--exclude',
+        '.tox',
         '-a',
         '.',
         '%s@%s:%s' % (
@@ -126,7 +131,8 @@ def cli():
             config.get('ssh', 'hostname'),
             remote_repo_path)])
 
-    command = ['cd %s ; tox' % remote_repo_path]
+    # removing .tox folder is done
+    command = ['cd %s ; PY_COLORS=1 python -m tox' % remote_repo_path]
     command.extend(sys.argv[1:])
     status_code = client.run(' '.join(command))
 
