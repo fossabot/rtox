@@ -1,3 +1,6 @@
+.. image:: https://travis-ci.org/pycontribs/rtox.svg?branch=master
+    :target: https://travis-ci.org/pycontribs/rtox
+ 
 ``rtox``
 ========
 
