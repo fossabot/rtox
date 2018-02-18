@@ -5,6 +5,9 @@ os:
 - linux
 python:
 - '2.7'
+branches:
+  only:
+  - master
 install:
 - sudo pip install tox virtualenv
 - ssh-keygen -q -t rsa -N '' -f ~/.ssh/id_rsa
