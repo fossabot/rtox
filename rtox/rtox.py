@@ -52,6 +52,13 @@ class Client(object):
 
                 time.sleep(0.1)
 
+            if channel.recv_ready():
+                length = len(channel.in_buffer)
+                sys.stdout.write(channel.recv(length))
+            if channel.recv_stderr_ready():
+                length = len(channel.in_stderr_buffer)
+                sys.stderr.write(channel.recv_stderr(length))
+
             return channel.recv_exit_status()
         except KeyboardInterrupt:
             channel.close()
