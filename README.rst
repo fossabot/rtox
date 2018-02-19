@@ -60,3 +60,24 @@ Once it's configured, just use ``rtox`` in place of ``tox``. For example::
 
 The state of your local codebase will be mirrored to the remote host, and tox
 will be executed there.
+
+untox
+=====
+
+Untox is a small script that obliterates any tox.ini commands that are
+installing python packages inside the virtualenv, removing sepctions
+like ``deps``, ``pip install ...``, truncating ``requirements.txt`` files
+and enabling ``sitepackages = True`` on all tox environments.
+
+Its purpose is to enable testing of python code with only system packages,
+something that may be desired by those that are planning to ship these
+modules as RPMs, DEBs.
+
+``untox`` script is installed as a command alongside ``rtox`` and once
+called it expectes to find a tox.ini in current folder. Be warned that changes
+are made in-place without any backup.
+
+You also have the option to call ``rtox --untox ...`` which will run untox
+on the remote system after doing the rsync and before running tox. This
+option is handy as it keeps the local repository untoched.
+
