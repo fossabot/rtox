@@ -9,18 +9,24 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations under
 # the License.
+from __future__ import absolute_import
+import argparse
 try:
     import ConfigParser as configparser
 except ImportError:
     import configparser
 import getpass
 import hashlib
+import inspect
 import os.path
 import subprocess
 import sys
 import time
 
 import paramiko
+
+from rtox import __version__
+import rtox.untox as untox_code
 
 
 class Client(object):
@@ -114,10 +120,30 @@ def shell_escape(arg):
 
 def cli():
     """Run the command line interface of the program."""
+
+    parser = \
+        argparse.ArgumentParser(
+            description='rtox runs tox on a remote machine instead of '
+                        'current one.',
+            add_help=True)
+
+    parser.add_argument('--version',
+                        action='version',
+                        version='%%(prog)s %s' % __version__)
+    parser.add_argument('--untox',
+                        dest='untox',
+                        action='store_true',
+                        default=False,
+                        help='untox obliterates any package installation from \
+                              tox.ini files in order to allow testing with \
+                              system packages only')
+    args, tox_args = parser.parse_known_args()
+
     config = load_config()
 
     repo = local_repo()
     remote_repo_path = '~/.rtox/%s' % hashlib.sha1(repo).hexdigest()
+    remote_untox = '~/.rtox/untox'
 
     client = Client(
         config.get('ssh', 'hostname'),
@@ -151,9 +177,25 @@ def cli():
             config.get('ssh', 'hostname'),
             remote_repo_path)])
 
+    if args.untox:
+        subprocess.check_call([
+            'rsync',
+            '--no-R',
+            '--no-implied-dirs',
+            '--chmod=ugo=rwx',
+            '--update',
+            '-a',
+            inspect.getsourcefile(untox_code),
+            '%s@%s:%s' % (
+                config.get('ssh', 'user'),
+                config.get('ssh', 'hostname'),
+                remote_untox)])
+
     # removing .tox folder is done
-    command = ['cd %s ; PY_COLORS=1 python -m tox' % remote_repo_path]
-    command.extend(sys.argv[1:])
+    command = ['cd %s ; %s PY_COLORS=1 python -m tox' %
+               (remote_repo_path,
+                '%s ; ' % remote_untox if args.untox else '')]
+    command.extend(tox_args)
     status_code = client.run(' '.join(command))
 
     raise SystemExit(status_code)

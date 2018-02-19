@@ -21,13 +21,13 @@ clean:
 	@rm -rf .tox dist/* docs/build/*
 
 test:
-	tox
+	@tox
 
 uninstall:
 	$(PREFIX)pip uninstall -y $(PACKAGE_NAME)
 
 dist:
-	rm -rf dist/*
+	@rm -rf dist/*
 	$(PREFIX)python setup.py sdist bdist_wheel
 
 upload: dist

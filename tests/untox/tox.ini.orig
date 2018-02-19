@@ -1,0 +1,42 @@
+[tox]
+minversion = 1.6
+skipsdist = True
+envlist = py27,pep8
+
+[testenv]
+usedevelop = True
+sitepackages = False
+commands =
+  pip install pip>=9.0.1
+  pip install -c{toxinidir}/upper-constraints.txt -r{toxinidir}/requirements.txt -r{toxinidir}/test-requirements.txt
+  bash tools/pretty_tox.sh '{posargs}'
+
+[testenv:pep8]
+deps = pip>=9.0.1
+commands =
+  pip install pip>=9.0.1
+  pip install -c{toxinidir}/upper-constraints.txt -r{toxinidir}/requirements.txt -r{toxinidir}/test-requirements.txt
+  flake8 {posargs} . foo
+  # Check that .po and .pot files are valid:
+
+[testenv:pylint]
+deps = -r{toxinidir}/requirements.txt
+       pylint==0.26.0
+       foo
+
+commands = bash tools/lintstack.sh
+
+[testenv:cover]
+commands =
+  pip install pip>=9.0.1
+  pip install -c{toxinidir}/upper-constraints.txt \
+    -r{toxinidir}/requirements.txt -r{toxinidir}/test-requirements.txt
+  python setup.py testr --coverage \
+    --testr-args='^(?!.*test.*coverage).*$ --concurrency 1'
+
+[testenv:venv]
+commands =
+  pip install pip>=9.0.1
+  pip install -c{toxinidir}/upper-constraints.txt -r{toxinidir}/requirements.txt -r{toxinidir}/test-requirements.txt
+  {posargs}
+sitepackages=False

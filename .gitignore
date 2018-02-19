@@ -5,3 +5,5 @@
 /ChangeLog
 /dist
 /rtox.egg-info
+/tests/untox/tox.ini
+*.log
