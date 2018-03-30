@@ -15,11 +15,28 @@
 # Wipes any packet installation code from tox.ini in order to be able
 # to run tox commands using system packages.
 #
+from __future__ import absolute_import
+import argparse
 import os
 import re
 
+__version__ = '1.0'
+
 
 def main():
+
+    parser = \
+        argparse.ArgumentParser(
+            description='untox obliterates any package installation from \
+                         tox.ini files in order to allow testing with \
+                         system packages only',
+            add_help=True)
+
+    parser.add_argument('--version',
+                        action='version',
+                        version='%%(prog)s %s' % __version__)
+    parser.parse_args()
+
     f = open('tox.ini', 'r+')
     data = f.read()
 
