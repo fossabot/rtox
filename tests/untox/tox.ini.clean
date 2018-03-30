@@ -12,6 +12,7 @@ commands =
 [testenv:pep8]
 commands =
   flake8 {posargs} . foo
+
 sitepackages = True
 [testenv:pylint]
 

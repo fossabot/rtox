@@ -31,17 +31,21 @@ def main():
                          tox.ini files in order to allow testing with \
                          system packages only',
             add_help=True)
-
+    parser.add_argument('--diff',
+                        dest='diff',
+                        action='store_true',
+                        default=False,
+                        help='prints diff of changes made')
     parser.add_argument('--version',
                         action='version',
                         version='%%(prog)s %s' % __version__)
-    parser.parse_args()
+    args = parser.parse_args()
 
     f = open('tox.ini', 'r+')
     data = f.read()
 
     # comments to avoid weird accidents while parsing
-    data = re.sub(r'\s*\#.*\n', '', data)
+    data = re.sub(r'^([\s\t]*\#.*)\n', '', data, flags=re.MULTILINE)
 
     # consolidate contiuation line breaks
     data = re.sub(r'^(.*)\\\n\s*([^\r\n]+)\n',
@@ -81,7 +85,8 @@ def main():
             open(reqs, "w").truncate(0)
 
     # logs changes made as a diff file
-    os.system("git diff | tee untox-diff.log")
+    if args.diff:
+        os.system("git diff | tee untox-diff.log")
 
 if __name__ == '__main__':
     main()
