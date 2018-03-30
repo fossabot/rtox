@@ -18,6 +18,7 @@ except ImportError:
 import getpass
 import hashlib
 import inspect
+import logging
 import os.path
 import subprocess
 import sys
@@ -177,6 +178,11 @@ def cli():
             config.get('ssh', 'hostname'),
             remote_repo_path)])
 
+    if os.path.isfile('bindep.txt'):
+        status_code = client.run('cd %s && bindep test' % remote_repo_path)
+        if (status_code != 0):
+            logging.warn("Failed to run bindep! Result %s", status_code)
+
     if args.untox:
         subprocess.check_call([
             'rsync',
@@ -192,9 +198,14 @@ def cli():
                 remote_untox)])
 
     # removing .tox folder is done
-    command = ['cd %s ; %s PY_COLORS=1 python -m tox' %
-               (remote_repo_path,
-                '%s ; ' % remote_untox if args.untox else '')]
+    if args.untox:
+        command = ['cd %s ; %s; %s; PY_COLORS=1 python -m tox' %
+                   (remote_repo_path,
+                    remote_untox,
+                    "pip install --no-deps -e .")]
+    else:
+        command = ['cd %s ; PY_COLORS=1 python -m tox' %
+                   remote_repo_path]
     command.extend(tox_args)
     status_code = client.run(' '.join(command))
 
