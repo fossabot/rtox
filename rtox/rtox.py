@@ -18,7 +18,6 @@ except ImportError:
 import getpass
 import hashlib
 import inspect
-import logging
 import os.path
 import subprocess
 import sys
@@ -27,6 +26,7 @@ import time
 import paramiko
 
 from rtox import __version__
+from rtox import logging
 import rtox.untox as untox_code
 
 
@@ -99,7 +99,7 @@ def load_config():
         dir = os.path.dirname(dir)
     if not dir:
         f = os.path.expanduser('~/.rtox.cfg')
-    print("INFO: Loading config from %s" % f)
+    logging.info("Loading config from %s" % f)
     config.read(f)
     return config
 
@@ -165,7 +165,13 @@ def cli():
     client.run('mkdir -p %s' % remote_repo_path)
 
     # Clone the repository we're working on to the remote machine.
-    print('Syncing the local repository to the remote host...')
+    rsync_path = '%s@%s:%s' % (
+        config.get('ssh', 'user'),
+        config.get('ssh', 'hostname'),
+        remote_repo_path)
+    logging.info('Syncing the local repository to %s ...' % rsync_path)
+    # Distributing .tox folder would be nonsense and most likely cause
+    # breakages.
     subprocess.check_call([
         'rsync',
         '--update',
@@ -173,15 +179,14 @@ def cli():
         '.tox',
         '-a',
         '.',
-        '%s@%s:%s' % (
-            config.get('ssh', 'user'),
-            config.get('ssh', 'hostname'),
-            remote_repo_path)])
+        rsync_path])
 
     if os.path.isfile('bindep.txt'):
-        status_code = client.run('cd %s && bindep test' % remote_repo_path)
+        cmd = 'cd %s && bindep test' % remote_repo_path
+        logging.info("STEP: %s" % cmd)
+        status_code = client.run(cmd)
         if (status_code != 0):
-            logging.warn("Failed to run bindep! Result %s", status_code)
+            logging.warn("Failed to run bindep! Result %s" % status_code)
 
     if args.untox:
         subprocess.check_call([
@@ -207,7 +212,10 @@ def cli():
         command = ['cd %s ; PY_COLORS=1 python -m tox' %
                    remote_repo_path]
     command.extend(tox_args)
-    status_code = client.run(' '.join(command))
+
+    cmd = ' '.join(command)
+    logging.info("STEP: %s" % cmd)
+    status_code = client.run(cmd)
 
     raise SystemExit(status_code)
 
