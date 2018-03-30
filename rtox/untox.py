@@ -47,6 +47,9 @@ def main():
     # comments to avoid weird accidents while parsing
     data = re.sub(r'^([\s\t]*\#.*)\n', '', data, flags=re.MULTILINE)
 
+    # remove empty lines (mostly to make result consistent/comparable)
+    data = re.sub(r'^$\n', '', data, flags=re.MULTILINE)
+
     # consolidate contiuation line breaks
     data = re.sub(r'^(.*)\\\n\s*([^\r\n]+)\n',
                   r'\1\2\n',
