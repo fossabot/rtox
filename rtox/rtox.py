@@ -33,38 +33,52 @@ import rtox.untox as untox_code
 class Client(object):
     """An SSH client that can runs remote commands as if they were local."""
 
-    def __init__(self, hostname, port=None, user=None):
+    def __init__(self, hostname, port=None, user=None, passenv=None):
         """Initialize an SSH client based on the given configuration."""
         self.ssh = paramiko.SSHClient()
         self.ssh.load_system_host_keys()
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self.ssh.connect(hostname, port=port, username=user)
+        self.passenv = 'export RTOX=1\n'
+        for v in passenv.split():
+            if v in os.environ:
+                self.passenv += "%s=%s\n" % (v, os.environ[v])
+        logging.debug("PASENV: %s", self.passenv)
 
     def run(self, command):
         """Run the given command remotely over SSH, echoing output locally."""
         channel = self.ssh.get_transport().open_session()
+        command = self.passenv + command
+        logging.info("STEP: %s", command.replace('\n', '; '))
+
         channel.exec_command(command)
         stdin, stdout, stderr = self.ssh.exec_command(command, get_pty=True)
+        stdout_encoding = sys.stdout.encoding or 'utf-8'
+        stderr_encoding = sys.stderr.encoding or 'utf-8'
 
         # Pass remote stdout and stderr to the local terminal
         try:
             while not channel.exit_status_ready():
                 if channel.recv_ready():
                     length = len(channel.in_buffer)
-                    sys.stdout.write(channel.recv(length))
+                    sys.stdout.write(channel.recv(length)
+                                     .decode(stdout_encoding))
 
                 if channel.recv_stderr_ready():
                     length = len(channel.in_stderr_buffer)
-                    sys.stderr.write(channel.recv_stderr(length))
+                    sys.stderr.write(channel.recv_stderr(length)
+                                     .decode(stderr_encoding))
 
                 time.sleep(0.1)
 
             if channel.recv_ready():
                 length = len(channel.in_buffer)
-                sys.stdout.write(channel.recv(length))
+                sys.stdout.write(channel.recv(length)
+                                 .decode(stdout_encoding))
             if channel.recv_stderr_ready():
                 length = len(channel.in_stderr_buffer)
-                sys.stderr.write(channel.recv_stderr(length))
+                sys.stderr.write(channel.recv_stderr(length)
+                                 .decode(stderr_encoding))
 
             return channel.recv_exit_status()
         except KeyboardInterrupt:
@@ -90,6 +104,7 @@ def load_config():
     config.set('ssh', 'user', getpass.getuser())
     config.set('ssh', 'hostname', 'localhost')
     config.set('ssh', 'port', '22')
+    config.set('ssh', 'passenv', '')
 
     dir = os.getcwd()
     while dir:
@@ -105,7 +120,7 @@ def load_config():
 
 
 def local_repo():
-    output = subprocess.check_output(['git', 'remote', '--verbose'])
+    output = subprocess.check_output(['git', 'remote', '--verbose']).decode()
 
     # Parse the output to find the fetch URL.
     return output.split('\n')[0].split(' ')[0].split('\t')[1]
@@ -142,14 +157,15 @@ def cli():
 
     config = load_config()
 
-    repo = local_repo()
+    repo = local_repo().encode('utf-8')
     remote_repo_path = '~/.rtox/%s' % hashlib.sha1(repo).hexdigest()
     remote_untox = '~/.rtox/untox'
 
     client = Client(
         config.get('ssh', 'hostname'),
         port=config.getint('ssh', 'port'),
-        user=config.get('ssh', 'user'))
+        user=config.get('ssh', 'user'),
+        passenv=config.get('ssh', 'passenv'))
 
     # Bail immediately if we don't have what we need on the remote host.
     # We prefer to check if python modules are installed instead of the cli
@@ -182,8 +198,8 @@ def cli():
         rsync_path])
 
     if os.path.isfile('bindep.txt'):
-        cmd = 'cd %s && bindep test' % remote_repo_path
-        logging.info("STEP: %s" % cmd)
+        cmd = 'cd %s && which bindep >/dev/null && bindep test || true' % \
+              remote_repo_path
         status_code = client.run(cmd)
         if (status_code != 0):
             logging.warn("Failed to run bindep! Result %s" % status_code)
@@ -204,17 +220,16 @@ def cli():
 
     # removing .tox folder is done
     if args.untox:
-        command = ['cd %s ; %s; %s; PY_COLORS=1 python -m tox' %
+        command = ['cd %s ; %s; %s; python -m tox' %
                    (remote_repo_path,
                     remote_untox,
                     "pip install --no-deps -e .")]
     else:
-        command = ['cd %s ; PY_COLORS=1 python -m tox' %
-                   remote_repo_path]
+        command = ['cd %s ; python -m tox' %
+                   (remote_repo_path, )]
     command.extend(tox_args)
 
     cmd = ' '.join(command)
-    logging.info("STEP: %s" % cmd)
     status_code = client.run(cmd)
 
     raise SystemExit(status_code)
