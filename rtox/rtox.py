@@ -20,10 +20,11 @@ import hashlib
 import inspect
 import os.path
 import subprocess
-import sys
-import time
 
-import paramiko
+from fabric.api import env
+from fabric.api import hide
+from fabric.api import run
+from fabric.context_managers import settings
 
 from rtox import __version__
 from rtox import logging
@@ -35,41 +36,34 @@ class Client(object):
 
     def __init__(self, hostname, port=None, user=None):
         """Initialize an SSH client based on the given configuration."""
-        self.ssh = paramiko.SSHClient()
-        self.ssh.load_system_host_keys()
-        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.ssh.connect(hostname, port=port, username=user)
+        env.user = user
+        if user:
+            env.host_string = "%s@%s" % (user, hostname)  # , 22)
+        else:
+            env.host_string = hostname
+        if port:
+            env.host_string += ":%s" % port
+        env.colorize_errors = True
+        env.forward_agent = True
+        env.warn_only = True
 
-    def run(self, command):
+    def run(self, command, silent=False):
         """Run the given command remotely over SSH, echoing output locally."""
-        channel = self.ssh.get_transport().open_session()
-        channel.exec_command(command)
-        stdin, stdout, stderr = self.ssh.exec_command(command, get_pty=True)
-
-        # Pass remote stdout and stderr to the local terminal
-        try:
-            while not channel.exit_status_ready():
-                if channel.recv_ready():
-                    length = len(channel.in_buffer)
-                    sys.stdout.write(channel.recv(length))
-
-                if channel.recv_stderr_ready():
-                    length = len(channel.in_stderr_buffer)
-                    sys.stderr.write(channel.recv_stderr(length))
-
-                time.sleep(0.1)
-
-            if channel.recv_ready():
-                length = len(channel.in_buffer)
-                sys.stdout.write(channel.recv(length))
-            if channel.recv_stderr_ready():
-                length = len(channel.in_stderr_buffer)
-                sys.stderr.write(channel.recv_stderr(length))
-
-            return channel.recv_exit_status()
-        except KeyboardInterrupt:
-            channel.close()
-            return 1
+        with settings():
+            if silent:
+                with hide('output'):
+                    result = run(command,
+                                 shell=True,
+                                 pty=False,  # to assure combine_stderr=False
+                                 combine_stderr=False,
+                                 shell_escape=False)
+            else:
+                result = run(command,
+                             shell=True,
+                             pty=False,  # to assure combine_stderr=Falsek
+                             combine_stderr=False,
+                             shell_escape=False)
+        return result
 
 
 def load_config():
@@ -154,12 +148,14 @@ def cli():
     # Bail immediately if we don't have what we need on the remote host.
     # We prefer to check if python modules are installed instead of the cli
     # scipts because on some platforms (like MacOS) script may not be in PATH.
-    cmd = 'output=`python -m virtualenv --version && \
-           python -m tox --version` || \
-           { echo $output; exit 1; }'
-    if client.run(cmd) != 0:
-        raise SystemExit(
-            'Ensure tox and virtualenv are available on the remote host.')
+    for cmd in ['python -m virtualenv --version', 'python -m tox --version']:
+        result = client.run(cmd, silent=True)
+        if result.failed:
+            raise SystemExit(
+                'Remote command `%s` returned %s. Ourput: %s' %
+                result.real_command,
+                result.return_code,
+                result.stderr)
 
     # Ensure we have a directory to work with on the remote host.
     client.run('mkdir -p %s' % remote_repo_path)
@@ -182,11 +178,12 @@ def cli():
         rsync_path])
 
     if os.path.isfile('bindep.txt'):
-        cmd = 'cd %s && bindep test' % remote_repo_path
-        logging.info("STEP: %s" % cmd)
-        status_code = client.run(cmd)
-        if (status_code != 0):
-            logging.warn("Failed to run bindep! Result %s" % status_code)
+        if client.run('which bindep', silent=True).succeeded:
+            cmd = 'cd %s && bindep test' % remote_repo_path
+            result = client.run(cmd)
+            if result.failed:
+                logging.warn("Failed to run bindep! Result %s" %
+                             result.status_code)
 
     if args.untox:
         subprocess.check_call([
