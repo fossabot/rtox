@@ -21,9 +21,13 @@ import inspect
 import os.path
 import subprocess
 
+from fabric.api import cd
 from fabric.api import env
 from fabric.api import hide
+from fabric.api import lcd
+from fabric.api import local
 from fabric.api import run
+from fabric.api import shell_env
 from fabric.context_managers import settings
 
 from rtox import __version__
@@ -34,35 +38,63 @@ import rtox.untox as untox_code
 class Client(object):
     """An SSH client that can runs remote commands as if they were local."""
 
-    def __init__(self, hostname, port=None, user=None):
+    def __init__(self,
+                 hostname,
+                 port=None,
+                 user=getpass.getuser(),
+                 passenv=''):
         """Initialize an SSH client based on the given configuration."""
-        env.user = user
         if user:
+            env.user = user
             env.host_string = "%s@%s" % (user, hostname)  # , 22)
         else:
+            env.user = getpass.getuser()
             env.host_string = hostname
+
+        env.host_string = hostname
+        self.full_host_string = "%s@%s" % (user, hostname)
+
         if port:
             env.host_string += ":%s" % port
+            self.full_host_string += ":%s" % port
+
         env.colorize_errors = True
         env.forward_agent = True
         env.warn_only = True
+        # linewise avoids weird interpolation of stderr and stdout output
+        env.linewise = True
+        self.passenv = {'RTOX': '1'}
+        for k in passenv.split():
+            if k in os.environ:
+                self.passenv[k] = os.environ[k]
+        logging.debug("PASSENV: %s" % self.passenv)
 
-    def run(self, command, silent=False):
+    def run(self, command, silent=False, cwd=''):
         """Run the given command remotely over SSH, echoing output locally."""
-        with settings():
+        with settings(shell_env(**self.passenv)), cd(cwd):
             if silent:
-                with hide('output'):
+                with hide('output', 'warnings'):
                     result = run(command,
                                  shell=True,
-                                 pty=False,  # to assure combine_stderr=False
+                                 pty=False,  # for combine_stderr=False
                                  combine_stderr=False,
                                  shell_escape=False)
             else:
                 result = run(command,
                              shell=True,
-                             pty=False,  # to assure combine_stderr=Falsek
+                             pty=False,  # for combine_stderr=Falsek
                              combine_stderr=False,
                              shell_escape=False)
+        return result
+
+    def local(self, command, silent=False, cwd=''):
+        """Run the given command locally, echoing output."""
+        with lcd(cwd):
+            if silent:
+                with hide('output', 'warnings'):
+                    result = local(command)
+            else:
+                result = local(command)
         return result
 
 
@@ -83,7 +115,8 @@ def load_config():
     config.add_section('ssh')
     config.set('ssh', 'user', getpass.getuser())
     config.set('ssh', 'hostname', 'localhost')
-    config.set('ssh', 'port', '22')
+    config.set('ssh', 'port', '')
+    config.set('ssh', 'passenv', '')
 
     dir = os.getcwd()
     while dir:
@@ -99,7 +132,7 @@ def load_config():
 
 
 def local_repo():
-    output = subprocess.check_output(['git', 'remote', '--verbose'])
+    output = subprocess.check_output(['git', 'remote', '--verbose']).decode()
 
     # Parse the output to find the fetch URL.
     return output.split('\n')[0].split(' ')[0].split('\t')[1]
@@ -115,6 +148,10 @@ def shell_escape(arg):
 
 def cli():
     """Run the command line interface of the program."""
+
+    if os.environ.get('RTOX') == '1':
+        logging.warn("Avoinding recursive call of rtox, returning 0.")
+        raise SystemExit(0)
 
     parser = \
         argparse.ArgumentParser(
@@ -136,54 +173,48 @@ def cli():
 
     config = load_config()
 
-    repo = local_repo()
+    repo = local_repo().encode('utf-8')
     remote_repo_path = '~/.rtox/%s' % hashlib.sha1(repo).hexdigest()
     remote_untox = '~/.rtox/untox'
 
     client = Client(
         config.get('ssh', 'hostname'),
-        port=config.getint('ssh', 'port'),
-        user=config.get('ssh', 'user'))
+        port=config.get('ssh', 'port'),
+        user=config.get('ssh', 'user'),
+        passenv=config.get('ssh', 'passenv'))
 
     # Bail immediately if we don't have what we need on the remote host.
     # We prefer to check if python modules are installed instead of the cli
     # scipts because on some platforms (like MacOS) script may not be in PATH.
-    for cmd in ['python -m virtualenv --version', 'python -m tox --version']:
+    for cmd in ['python -m pip install --user tox tox-pyenv virtualenv',
+                'python -m virtualenv --version',
+                'python -m tox --version']:
         result = client.run(cmd, silent=True)
         if result.failed:
             raise SystemExit(
-                'Remote command `%s` returned %s. Ourput: %s' %
-                result.real_command,
-                result.return_code,
-                result.stderr)
+                'Remote command `%s` returned %s. Output: %s' %
+                (result.real_command,
+                 result.return_code,
+                 result.stderr))
 
     # Ensure we have a directory to work with on the remote host.
-    client.run('mkdir -p %s' % remote_repo_path)
+    client.run('mkdir -p %s' % remote_repo_path, silent=True)
 
     # Clone the repository we're working on to the remote machine.
-    rsync_path = '%s@%s:%s' % (
-        config.get('ssh', 'user'),
-        config.get('ssh', 'hostname'),
+    rsync_path = '%s:%s' % (
+        client.full_host_string,
         remote_repo_path)
     logging.info('Syncing the local repository to %s ...' % rsync_path)
     # Distributing .tox folder would be nonsense and most likely cause
     # breakages.
-    subprocess.check_call([
-        'rsync',
-        '--update',
-        '--exclude',
-        '.tox',
-        '-a',
-        '.',
-        rsync_path])
+    client.local('rsync --update --exclude .tox -a . %s' % rsync_path)
 
     if os.path.isfile('bindep.txt'):
         if client.run('which bindep', silent=True).succeeded:
-            cmd = 'cd %s && bindep test' % remote_repo_path
-            result = client.run(cmd)
+            result = client.run('bindep test', cwd=remote_repo_path)
             if result.failed:
                 logging.warn("Failed to run bindep! Result %s" %
-                             result.status_code)
+                             result.return_code)
 
     if args.untox:
         subprocess.check_call([
@@ -201,20 +232,17 @@ def cli():
 
     # removing .tox folder is done
     if args.untox:
-        command = ['cd %s ; %s; %s; PY_COLORS=1 python -m tox' %
-                   (remote_repo_path,
-                    remote_untox,
+        command = ['%s; %s; python -m tox' %
+                   (remote_untox,
                     "pip install --no-deps -e .")]
     else:
-        command = ['cd %s ; PY_COLORS=1 python -m tox' %
-                   remote_repo_path]
+        command = ['python -m tox']
     command.extend(tox_args)
 
     cmd = ' '.join(command)
-    logging.info("STEP: %s" % cmd)
-    status_code = client.run(cmd)
+    result = client.run(cmd, cwd=remote_repo_path)
 
-    raise SystemExit(status_code)
+    raise SystemExit(result.return_code)
 
 
 if __name__ == '__main__':
