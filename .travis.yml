@@ -1,65 +1,66 @@
 language: python
 cache:
-  - pip
+- pip
 sudo: required
-# see https://github.com/travis-ci/travis-ci/issues/8647
 os:
 - linux
 branches:
   only:
   - master
 install:
-  - |
-    sudo pip install -q tox-travis virtualenv | cat
-    ssh-keygen -q -t rsa -N '' -f ~/.ssh/id_rsa
-    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-    echo "  StrictHostKeyChecking no" >> ~/.ssh/config
-    chmod g-rw,o-rw ~/.ssh/*
+- |
+  sudo pip install -q tox-travis virtualenv | cat
+  ssh-keygen -q -t rsa -N '' -f ~/.ssh/id_rsa
+  cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+  echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+  chmod g-rw,o-rw ~/.ssh/*
 stages:
-  - lint
-  - test
-  - deploy
+- lint
+- test
+- deploy
 jobs:
   include:
-    - stage: lint
-      script:
-      - pip install -q tox | cat
-      - tox -e lint
-      install: skip
-    - stage: test
-      script: make info test dist
-      python: 2.7
-      env: TOXENV=py27
-    - stage: test
-      script: make info test dist
-      python: 3.4
-      env: TOXENV=py34
-    - stage: test
-      script: make info test dist
-      python: 3.5
-      env: TOXENV=py35
-    - stage: test
-      script: make info test dist
-      python: 3.6
-      env: TOXENV=py36 PYTHON='3.6' PYENV_VERSION='system'
-    - stage: deploy
-      tags: true
-      script:
-      - export PACKAGE_NAME=$(python setup.py --name)
-      - export PACKAGE_VERSION=$(python setup.py --version)
-      - make dist
-      deploy:
-      - provider: releases
-        api_key:
-          secure: G19YtkGAX0aJ1oyd/7eRj1KYdsmAkjkfU2UISvsjh/68ec1+9qtPpN7BbkFYZYMjSx0BtS0SEEA7Vdl4F9DI9Zzqahbj7WzDLFe9/4aZKM/ztfKWR6CNAYaMazAKS5W7r9pPkBBDIIJ9zCqvV7FRzjewEpfTwFzwUdY+IpxEsAM=
-        file:
-        - dist/$PACKAGE_NAME-$PACKAGE_VERSION.tar.gz
-        - dist/$PACKAGE_NAME-$PACKAGE_VERSION-py2.py3-none-any.whl
-        - ChangeLog
-        skip_cleanup: true
-      - provider: pypi
-        user: sorin
-        password:
-          secure: E0cjANF7SLBdYrsnWLK8X/xWznqkF0JrP/DVfDazPzUYH6ynFeneyofzNJQPLTLsqe1eKXhuUJ/Sbl+RHFB0ySo/j/7NfYd/9pm8hpUkGCvR09IwtvMLgWKp3k10NWab03o2GOkSJSrLvZofyZBGR40wwu2O9uXPCb2rvucCGbw=
-        distributions: sdist bdist_wheel
-        skip_cleanup: true
+  - stage: lint
+    script:
+    - pip install -q tox | cat
+    - tox -e lint
+    install: skip
+  - stage: test
+    script: make info test dist
+    python: 2.7
+    env: TOXENV=py27
+  - stage: test
+    script: make info test dist
+    python: 3.4
+    env: TOXENV=py34
+  - stage: test
+    script: make info test dist
+    python: 3.5
+    env: TOXENV=py35
+  - stage: test
+    script: make info test dist
+    python: 3.6
+    env: TOXENV=py36 PYTHON='3.6' PYENV_VERSION='system'
+  - stage: deploy
+    tags: true
+    script:
+    - export PACKAGE_NAME=$(python setup.py --name)
+    - export PACKAGE_VERSION=$(python setup.py --version)
+    - make dist
+    deploy:
+    - provider: releases
+      api_key:
+        secure: oAt0bG8ZalhvZ/MmGXBZ6Vzwr/XssoYI8x3SdMCJZeTfvDYN6eXWNrdJpsCIPv9PjbcDnLAbuDI0pkfdC7LAw8SKDwoHx5F6qKkmPx9n9nKl53O8Jg2XG9VI4RxVX86nm7DPfnQ04pOP5Cw653ZXRmuI6CuVkJ7HejRjkh9G9ks7Z8yQXDKfxbuPcz+82mk/2a/OzhOSrD/J3MOgwZyeB/zz1JG80yu6b5Q0+xuWWAmvERr3bHUlFIKnMWkr2kwGdntqSQIAv/kD5Oy3I60aRS/6Wggd7PboDoDPuyh1d8eep72dFqdIdo6XA9uu1uE9iL29BaoZ+h1a+tm4uwYfCznZZIb/XwEuwmwXnaq6Eu+LeX5wQ4LwQwmUZNCChYdz6QkTRuaHnOKvN9JXPJfr6Pywx+BvMj+s4kxnp/634g/chMwtnqPauTcD/IP45sdmKrnQN4hLyPtI3oIJQn8zCLbllru5ixxV6ztUtjy+0Im/OomD5aY8QXi6Wq6ptdg9bAnp4oLxtU4Q1O9uYMPHrx7Ph3s5yPrclT3/f5K7eV6WezdqiTBszk/83FImMvfVvcX/SrxTGRiZfytIaAs6T0FwSKf8N4Pn6XGGmg7k0hkRp34WA6dSleZqpyH2PM9HvTu0mj1wuMGZ7bsJsQ7Tzz8YIySaNRKrb5UVQrY4VMU=
+      file:
+      - dist/$PACKAGE_NAME-$PACKAGE_VERSION.tar.gz
+      - dist/$PACKAGE_NAME-$PACKAGE_VERSION-py2.py3-none-any.whl
+      - ChangeLog
+      skip_cleanup: true
+    - provider: pypi
+      user: pycontribs
+      password:
+        secure: aiWhHgiZsro52okfhdeick1QEdArXk2RV2eh6f/DJ1cJA2sCPpPzxGXRUw7UwJyS2FQgL+qKeC7a+9ckEMQ0cM5WCk/H9w8qxMnj3VVfZBIARHrO6isZmLMKy+zNJvwi1MapoPyIi6mOFTJJkwBQ2vferoz9WDnp3VkcYOaODKbKOCCWhWK5HEo+QtfQtzerUmMESzVfoJOwe9QUGn+R8wBOqf7G1SmuJp0SReYHGAFxM6DY/PsC68wT3vyEm6bB20OzLPV/U1xp9sUGS5+OnNzRjM8SV8HzTCr1uf2Si05IvGjhG8GkemTVZadxg+IZdORus6e7IBPvyfZ9OM2Mf6I6/pGM0uI5MBo6l6CZyR6hkBtgjCNH2Eq3iAkBNcVdLWAFUdvwmlkSIjOYyS6sWwVQXnZW/tte+cwE/6uy5Fceoh9Xsg7i+iBrVAviAdzxwogyHWGOPGX0YI/drBoc1AUx4vEwPVnOhCXcgdyboo0DWKoQiy+Vdq6oDvPnUcCze6Nb2KHWow9Zny/Fbg8qqdc8/jZhKlHhKjeVlwZ1QZEVoTTe/CYNd2jzuNtV/rMuP86OcbhYIJRaRptdxbg3MD57b5CSvx2L0sqdprQkJNRppqg0YRuJhGfDH9cMIfhhQhp8n6prOXi3s4sFd36vQ3RoinIvjI7bYBnXz0yFvI8=
+      distributions: sdist bdist_wheel
+      skip_cleanup: true
+      on:
+        tags: true
