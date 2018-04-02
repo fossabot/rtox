@@ -43,4 +43,23 @@ jobs:
       python: 3.6
       env: TOXENV=py36 PYTHON='3.6' PYENV_VERSION='system'
     - stage: deploy
-      script: make dist
+      tags: true
+      script:
+      - export PACKAGE_NAME=$(python setup.py --name)
+      - export PACKAGE_VERSION=$(python setup.py --version)
+      - make dist
+      deploy:
+      - provider: releases
+        api_key:
+          secure: G19YtkGAX0aJ1oyd/7eRj1KYdsmAkjkfU2UISvsjh/68ec1+9qtPpN7BbkFYZYMjSx0BtS0SEEA7Vdl4F9DI9Zzqahbj7WzDLFe9/4aZKM/ztfKWR6CNAYaMazAKS5W7r9pPkBBDIIJ9zCqvV7FRzjewEpfTwFzwUdY+IpxEsAM=
+        file:
+        - dist/$PACKAGE_NAME-$PACKAGE_VERSION.tar.gz
+        - dist/$PACKAGE_NAME-$PACKAGE_VERSION-py2.py3-none-any.whl
+        - ChangeLog
+        skip_cleanup: true
+      - provider: pypi
+        user: sorin
+        password:
+          secure: E0cjANF7SLBdYrsnWLK8X/xWznqkF0JrP/DVfDazPzUYH6ynFeneyofzNJQPLTLsqe1eKXhuUJ/Sbl+RHFB0ySo/j/7NfYd/9pm8hpUkGCvR09IwtvMLgWKp3k10NWab03o2GOkSJSrLvZofyZBGR40wwu2O9uXPCb2rvucCGbw=
+        distributions: sdist bdist_wheel
+        skip_cleanup: true
