@@ -52,15 +52,26 @@ class Client(object):
             env.host_string = hostname
 
         env.host_string = hostname
+        self.rsync_host_string = hostname  # port need to be separated
         self.full_host_string = "%s@%s" % (user, hostname)
 
         if port:
             env.host_string += ":%s" % port
             self.full_host_string += ":%s" % port
+            self.rsync_params = '-e "ssh -p %s" ' % port
+        else:
+            self.rsync_params = ''
+
+        if os.path.isfile('.gitignore'):
+            # Load excludes from .gitignore
+            # See https://stackoverflow.com/a/15373763/99834
+            self.rsync_params += "--filter=':- .gitignore' "
+        else:
+            for exclude in ['.tox', '.pytest_cache', '*.pyc', '__pycache__']:
+                self.rsync_params += '--exclude %s ' % exclude
 
         env.colorize_errors = True
         env.forward_agent = True
-        env.warn_only = True
         # linewise avoids weird interpolation of stderr and stdout output
         env.linewise = True
         self.passenv = {'RTOX': '1'}
@@ -69,8 +80,9 @@ class Client(object):
                 self.passenv[k] = os.environ[k]
         logging.debug("PASSENV: %s" % self.passenv)
 
-    def run(self, command, silent=False, cwd=''):
+    def run(self, command, silent=False, cwd='', warn_only=False):
         """Run the given command remotely over SSH, echoing output locally."""
+        env.warn_only = warn_only
         with settings(shell_env(**self.passenv)), cd(cwd):
             if silent:
                 with hide('output', 'warnings'):
@@ -202,15 +214,17 @@ def cli():
 
     # Clone the repository we're working on to the remote machine.
     rsync_path = '%s:%s' % (
-        client.full_host_string,
-        remote_repo_path)
+        client.rsync_host_string,
+        remote_repo_path.replace('~', '\~'))
     logging.info('Syncing the local repository to %s ...' % rsync_path)
     # Distributing .tox folder would be nonsense and most likely cause
     # breakages.
-    client.local('rsync --update --exclude .tox -a . %s' % rsync_path)
+    client.local('rsync %s--update -a . %s' % (
+                 client.rsync_params,
+                 rsync_path))
 
     if os.path.isfile('bindep.txt'):
-        if client.run('which bindep', silent=True).succeeded:
+        if client.run('which bindep', silent=True, warn_only=True).succeeded:
             result = client.run('bindep test', cwd=remote_repo_path)
             if result.failed:
                 logging.warn("Failed to run bindep! Result %s" %
