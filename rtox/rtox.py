@@ -219,7 +219,7 @@ def cli():
     logging.info('Syncing the local repository to %s ...' % rsync_path)
     # Distributing .tox folder would be nonsense and most likely cause
     # breakages.
-    client.local('rsync %s--update -a . %s' % (
+    client.local('rsync %s--update --delete -a . %s' % (
                  client.rsync_params,
                  rsync_path))
 
