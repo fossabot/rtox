@@ -19,6 +19,7 @@ import getpass
 import hashlib
 import inspect
 import os.path
+import re
 import subprocess
 
 from fabric.api import cd
@@ -129,6 +130,7 @@ def load_config():
     config.set('ssh', 'hostname', 'localhost')
     config.set('ssh', 'port', '')
     config.set('ssh', 'passenv', '')
+    config.set('ssh', 'folder', 'hash')
 
     dir = os.getcwd()
     while dir:
@@ -140,6 +142,10 @@ def load_config():
         f = os.path.expanduser('~/.rtox.cfg')
     logging.info("Loading config from %s" % f)
     config.read(f)
+
+    if config.get('ssh', 'folder') not in ['hash', 'repo']:
+        raise SystemExit("Invalid config value found for 'folder', "
+                         "possible values: hash, repo.")
     return config
 
 
@@ -186,7 +192,12 @@ def cli():
     config = load_config()
 
     repo = local_repo().encode('utf-8')
-    remote_repo_path = '~/.rtox/%s' % hashlib.sha1(repo).hexdigest()
+    if config.get('ssh', 'folder') == 'hash':
+        target_folder = hashlib.sha1(repo).hexdigest()
+    else:
+        target_folder = re.sub('\.git$', '', repo.rsplit('/', 1)[-1])
+
+    remote_repo_path = '~/.rtox/%s' % target_folder
     remote_untox = '~/.rtox/untox'
 
     client = Client(
