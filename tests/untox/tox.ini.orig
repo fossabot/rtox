@@ -9,7 +9,8 @@ sitepackages = False
 commands =
   pip install pip>=9.0.1
   pip install -c{toxinidir}/upper-constraints.txt -r{toxinidir}/requirements.txt -r{toxinidir}/test-requirements.txt
-  bash tools/pretty_tox.sh '{posargs}'
+  true
+whitelist_externals = true
 
 [testenv:pep8]
 deps = pip>=9.0.1
@@ -24,7 +25,7 @@ deps = -r{toxinidir}/requirements.txt
        pylint==0.26.0
        foo
 
-commands = bash tools/lintstack.sh
+commands = true
 
 [testenv:cover]
 commands =

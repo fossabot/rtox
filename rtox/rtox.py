@@ -193,13 +193,13 @@ def cli():
 
     config = load_config()
 
-    repo = local_repo().encode('utf-8')
+    repo = local_repo()
     if config.get('ssh', 'folder') == 'hash':
         target_folder = hashlib.sha1(repo).hexdigest()
     else:
         target_folder = re.sub('\.git$', '', repo.rsplit('/', 1)[-1])
 
-    remote_repo_path = '~/.rtox/%s' % target_folder
+    remote_repo_path = '~/.rtox/%s' % target_folder.encode('utf-8')
     remote_untox = '~/.rtox/untox'
 
     client = Client(
