@@ -66,7 +66,9 @@ class Client(object):
         if os.path.isfile('.gitignore'):
             # Load excludes from .gitignore
             # See https://stackoverflow.com/a/15373763/99834
-            self.rsync_params += "--filter=':- .gitignore' "
+            self.rsync_params += \
+                "--include .git --exclude=`git ls-files " \
+                "--exclude-standard -oi --directory` "
         else:
             for exclude in ['.tox', '.pytest_cache', '*.pyc', '__pycache__']:
                 self.rsync_params += '--exclude %s ' % exclude
