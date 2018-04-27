@@ -172,9 +172,9 @@ def cli():
     if os.environ.get('RTOX') == '1':
         logging.warn("Avoinding recursive call of rtox, returning 0.")
         raise SystemExit(0)
-
     parser = \
         argparse.ArgumentParser(
+            prog='rtox',
             description='rtox runs tox on a remote machine instead of '
                         'current one.',
             add_help=True)
