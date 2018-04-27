@@ -67,8 +67,9 @@ class Client(object):
             # Load excludes from .gitignore
             # See https://stackoverflow.com/a/15373763/99834
             self.rsync_params += \
-                "--include .git --exclude=`git ls-files " \
-                "--exclude-standard -oi --directory` "
+                '--include .git --exclude-from="$(git ls-files ' \
+                '--exclude-standard -oi --directory >.git/ignores.tmp && ' \
+                'echo .git/ignores.tmp)" '
         else:
             for exclude in ['.tox', '.pytest_cache', '*.pyc', '__pycache__']:
                 self.rsync_params += '--exclude %s ' % exclude
