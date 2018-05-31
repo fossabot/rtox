@@ -196,7 +196,7 @@ def cli():
 
     repo = local_repo()
     if config.get('ssh', 'folder') == 'hash':
-        target_folder = hashlib.sha1(repo).hexdigest()
+        target_folder = hashlib.sha1(repo.encode('utf-8')).hexdigest()
     else:
         target_folder = re.sub('\.git$', '', repo.rsplit('/', 1)[-1])
 
