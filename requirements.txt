@@ -1,3 +1,4 @@
 pbr
 python-gssapi
-Fabric3  # switch to fabric after 2.x release
+paramiko
+# add fabric>=2.0 here once we remove the fabric3 fork from our codebase
