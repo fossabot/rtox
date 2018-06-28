@@ -22,14 +22,14 @@ import os.path
 import re
 import subprocess
 
-from fabric.api import cd
-from fabric.api import env
-from fabric.api import hide
-from fabric.api import lcd
-from fabric.api import local
-from fabric.api import run
-from fabric.api import shell_env
-from fabric.context_managers import settings
+from rtox.fabric.api import cd
+from rtox.fabric.api import env
+from rtox.fabric.api import hide
+from rtox.fabric.api import lcd
+from rtox.fabric.api import local
+from rtox.fabric.api import run
+from rtox.fabric.api import shell_env
+from rtox.fabric.context_managers import settings
 
 from rtox import __version__
 from rtox import logging
