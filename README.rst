@@ -1,3 +1,5 @@
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpycontribs%2Frtox.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fpycontribs%2Frtox?ref=badge_shield)
+
 .. image:: https://travis-ci.org/pycontribs/rtox.svg?branch=master
     :target: https://travis-ci.org/pycontribs/rtox
  
@@ -81,3 +83,7 @@ You also have the option to call ``rtox --untox ...`` which will run untox
 on the remote system after doing the rsync and before running tox. This
 option is handy as it keeps the local repository untoched.
 
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpycontribs%2Frtox.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fpycontribs%2Frtox?ref=badge_large)
